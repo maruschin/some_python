@@ -32,6 +32,10 @@ def main(url, branch, startdate, enddate):
 
 
 def get_top_contributors(repository):
+    '''
+    Самые активные участники. Таблица из 2 столбцов: login автора, количество его коммитов.
+    Таблица отсортирована по количеству коммитов по убыванию. Не более 30 строк.
+    '''
     API_URL = 'https://api.github.com/repos/{0}/stats/contributors'.format(repository)
     response_json = get_resource(API_URL)
     contributors = []
@@ -50,7 +54,7 @@ def get_resource(url):
 
 
 def valid_url(url):
-    if re.match('^(https://)?github.com/[a-z0-9-]+/[a-z0-9-]+/?$', url):
+    if re.match('^(https://)?github.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+/?$', url):
         return url
     else:
         msg = "Not a valid github URL: '{0}'.".format(url)
