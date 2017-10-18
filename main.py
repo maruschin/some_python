@@ -1,4 +1,7 @@
 '''
+Author: Eugene Maruschin (Evgenii Marushchenko | Евгений Марущенко)
+Source: https://github.com/maruschin/some_python
+
 Провести анализ репозитория, используя REST API Github.
 Результат анализа выводятся в stdout.
 Необходимо вывести такие результаты:
@@ -20,6 +23,7 @@
 import urllib.request
 import json
 import re
+import logging
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 
@@ -52,25 +56,46 @@ def get_open_and_closed_pull_requests(repository):
     open_pull_requests = 0
     for response_json in get_resource(API_URL):
         for response_element in response_json:
-            print(response_element['state'])
             open_pull_requests +=1
     return open_pull_requests
     #return open_pull_requests, close_pull_requests
 
 
+def parse_header_links(header_links):
+    ''' 
+    >>> parse_header_links(
+    ... '<https://api.github.com/repositories/1579990/pulls?page=2>; rel="next", ' +
+    ... '<https://api.github.com/repositories/1579990/pulls?page=4>; rel="last"')
+    {'next': {'page': 2}, 'last': {'page': 4}}
+    '''
+    logging.info('Running parse_header_links function')
+    logging.debug(header_links)
+    rel = dict()
+    for i in header_links.split(','):
+        foo = i.split(';')
+        page = re.sub('>$', '', re.sub('^<[\S]+\?','', foo[0].strip())).split('=')
+        rel_value = (re.sub('"', '', foo[1]).split('='))[1]
+        rel[rel_value] = {page[0]: int(page[1])}
+    logging.debug(rel)
+    return rel
+
+
 def get_resource(url):
-    for i in range(1,4):
+    request = urllib.request.Request(url=(url), method='GET')
+    request.add_header('Accept', 'application/vnd.github.v3+json')
+    with urllib.request.urlopen(request) as res:
+        response = res.read().decode('utf-8')
+        rel = parse_header_links(res.headers['Link'])
+    if rel['next'] == None:
+        return json.loads(response)
+    else:
+        yield json.loads(response)
+    for i in range(rel['next']['page'],rel['last']['page']+1):
         request = urllib.request.Request(url=(url + '?page=' + str(i)), method='GET')
         request.add_header('Accept', 'application/vnd.github.v3+json')
         with urllib.request.urlopen(request) as res:
             response = res.read().decode('utf-8')
         yield json.loads(response)
-    #with urllib.request.urlopen(request) as res:
-    #    for i in res.headers['Link'].split(','):
-    #        print(i)
-    #    assert False
-    #    response = res.read().decode('utf-8')
-    #return json.loads(response)
 
 
 def valid_url(url):
@@ -90,6 +115,7 @@ def valid_date(date):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(filename='example.log', level=logging.DEBUG)
     parser = ArgumentParser(description='Анализ репозитория github.')
     # URL публичного репозитория на github.com
     parser.add_argument('url', type=valid_url,
@@ -103,5 +129,6 @@ if __name__ == "__main__":
     # Ветка репозитория. По умолчанию - master.
     parser.add_argument('-b', '--branch', type=str, default = 'master',
         help='Ветка репозитория. По умолчанию - master')
-
+    #import doctest
+    #doctest.testmod()
     main(**(vars(parser.parse_args())))
