@@ -28,7 +28,8 @@ def main(url, branch, startdate, enddate):
     '''
     '''
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
-    print(get_top_contributors(repository))
+    #print(get_top_contributors(repository))
+    print(get_open_and_closed_pull_requests(repository))
 
 
 def get_top_contributors(repository):
@@ -45,12 +46,31 @@ def get_top_contributors(repository):
     return contributors[:30]
 
 
+def get_open_and_closed_pull_requests(repository):
+    '''Количество открытых и закрытых pull requests.'''
+    API_URL = 'https://api.github.com/repos/{0}/pulls'.format(repository)
+    open_pull_requests = 0
+    for response_json in get_resource(API_URL):
+        for response_element in response_json:
+            print(response_element['state'])
+            open_pull_requests +=1
+    return open_pull_requests
+    #return open_pull_requests, close_pull_requests
+
+
 def get_resource(url):
-    request = urllib.request.Request(url=url, method='GET')
-    request.add_header('Accept', 'application/vnd.github.v3+json')
-    with urllib.request.urlopen(request) as res:
-        response = res.read().decode('utf-8')
-    return json.loads(response)
+    for i in range(1,4):
+        request = urllib.request.Request(url=(url + '?page=' + str(i)), method='GET')
+        request.add_header('Accept', 'application/vnd.github.v3+json')
+        with urllib.request.urlopen(request) as res:
+            response = res.read().decode('utf-8')
+        yield json.loads(response)
+    #with urllib.request.urlopen(request) as res:
+    #    for i in res.headers['Link'].split(','):
+    #        print(i)
+    #    assert False
+    #    response = res.read().decode('utf-8')
+    #return json.loads(response)
 
 
 def valid_url(url):
