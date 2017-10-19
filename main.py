@@ -31,7 +31,7 @@ from datetime import datetime
 
 def func_run_logging(func):
     def func_log(*args, **kwargs):
-        args_string = ', '.join(list(args) + ['='.join((key, str(kwargs[key]))) for key in kwargs])
+        args_string = ', '.join([str(arg) for arg in args] + ['='.join((key, str(kwargs[key]))) for key in kwargs])
         logging.info("Run function: {0}({1})".format(func.__name__, args_string))
         return func(*args, **kwargs)
     return func_log
@@ -42,6 +42,8 @@ def main(url, branch, startdate, enddate):
     '''
     '''
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
+
+    print(get_rate_limit())
     #print(get_top_contributors(repository))
     #print(get_open_and_closed_pull_requests(repository))
 
@@ -53,10 +55,10 @@ def get_top_contributors(repository):
     Таблица отсортирована по количеству коммитов по убыванию. Не более 30 строк.
     '''
     API_URL = 'https://api.github.com/repos/{0}/stats/contributors'.format(repository)
-    response_json = get_resource(API_URL)
     contributors = []
-    for response_element in response_json:
-        contributors.append((response_element['author']['login'], response_element['total']))
+    for response_json in get_resource(API_URL):
+        for response_element in response_json:
+            contributors.append((response_element['author']['login'], response_element['total']))
     contributors.sort(key=lambda el: el[1], reverse=True)
     return contributors[:30]
 
@@ -64,7 +66,7 @@ def get_top_contributors(repository):
 @func_run_logging
 def get_open_and_closed_pull_requests(repository):
     '''Количество открытых и закрытых pull requests.'''
-    API_URL = 'https://api.github.com/repos/{0}/pulls?state=all'.format(repository)
+    API_URL = 'https://api.github.com/repos/{0}/pulls?state=all&per_page=100'.format(repository)
     open_pull_requests = 0
     closed_pull_requests = 0
     logging.info("Counting open and closed pull requests...")
@@ -74,7 +76,7 @@ def get_open_and_closed_pull_requests(repository):
                 open_pull_requests += 1
             else:
                 closed_pull_requests += 1
-        logging.info("Open: {0}, closed: {1} pull requests...",format(open_pull_requests, closed_pull_request))
+        logging.info("Open: {0}, closed: {1} pull requests...".format(str(open_pull_requests), str(closed_pull_requests)))
     return open_pull_requests, closed_pull_requests
 
 
@@ -108,25 +110,33 @@ def parse_headers_link(headers_link):
 
 
 @func_run_logging
+def get_rate_limit():
+    request = urllib.request.Request(url='https://api.github.com/rate_limit', method='GET')
+    request.add_header('Accept', 'application/vnd.github.v3+json')
+    with urllib.request.urlopen(request) as res:
+        response = res.read().decode('utf-8')
+        logging.debug(res.headers)
+        logging.info('Rate limit: {0}, remaining: {1}'.format(res.headers['X-RateLimit-Limit'], res.headers['X-RateLimit-Remaining']))
+
+
+@func_run_logging
 def get_resource(url):
     request = urllib.request.Request(url=(url), method='GET')
     request.add_header('Accept', 'application/vnd.github.v3+json')
     with urllib.request.urlopen(request) as res:
         response = res.read().decode('utf-8')
-        rel = parse_headers_link(res.headers['Link'])
+        logging.debug(res.headers)
+        rel = parse_headers_link(res.headers['Link']) if res.headers['Link'] != None else {'next': None}
     if rel['next'] == None:
-        logging.debug("some")
-        return json.loads(response)
+        yield json.loads(response)
     else:
-        logging.debug("some")
         yield json.loads(response)
-    for i in range(rel['next']['page'],rel['last']['page']+1):
-        request = urllib.request.Request(url=(url + '?page=' + str(i)), method='GET')
-        request.add_header('Accept', 'application/vnd.github.v3+json')
-        with urllib.request.urlopen(request) as res:
-            response = res.read().decode('utf-8')
-        logging.debug("some")
-        yield json.loads(response)
+        for i in range(rel['next']['page'],rel['last']['page']+1):
+            request = urllib.request.Request(url=(url + '&page=' + str(i)), method='GET')
+            request.add_header('Accept', 'application/vnd.github.v3+json')
+            with urllib.request.urlopen(request) as res:
+                response = res.read().decode('utf-8')
+            yield json.loads(response)
 
 
 @func_run_logging
@@ -134,7 +144,8 @@ def valid_url(url):
     if re.match('^(https://)?github.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+/?$', url):
         return url
     else:
-        msg = "Not a valid github URL: '{0}'.".format(url)
+        msg = "Not a valid github URL: '{0}'".format(url)
+        logging.error(msg)
         raise ArgumentTypeError(msg)
 
 
@@ -143,7 +154,8 @@ def valid_date(date):
     try:
         return datetime.strptime(date, '%Y-%m-%d')
     except ValueError:
-        msg = "Not a valid date: '{0}'.".format(date)
+        msg = "Not a valid date: '{0}'".format(date)
+        logging.error(msg)
         raise ArgumentTypeError(msg)
 
 
