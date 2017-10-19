@@ -31,7 +31,8 @@ from datetime import datetime
 
 def func_run_logging(func):
     def func_log(*args, **kwargs):
-        logging.info("Run function: {0}({1})".format(func.__name__, ', '.join(args)))
+        args_string = ', '.join(list(args) + ['='.join((key, str(kwargs[key]))) for key in kwargs])
+        logging.info("Run function: {0}({1})".format(func.__name__, args_string))
         return func(*args, **kwargs)
     return func_log
 
@@ -42,7 +43,7 @@ def main(url, branch, startdate, enddate):
     '''
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
     #print(get_top_contributors(repository))
-    print(get_open_and_closed_pull_requests(repository))
+    #print(get_open_and_closed_pull_requests(repository))
 
 
 @func_run_logging
@@ -147,7 +148,9 @@ def valid_date(date):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename='X:\OwnWork\PlayRix\example.log', level=logging.DEBUG)
+    FORMAT = '%(asctime)-15s [%(levelname)s] %(message)s'
+    FILENAME = 'X:\OwnWork\PlayRix\example.log'
+    logging.basicConfig(filename=FILENAME, format=FORMAT, level=logging.DEBUG)
     parser = ArgumentParser(description='Анализ репозитория github.')
     # URL публичного репозитория на github.com
     parser.add_argument('url', type=valid_url,
