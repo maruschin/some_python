@@ -113,10 +113,17 @@ def parse_headers_link(headers_link):
 def get_rate_limit():
     request = urllib.request.Request(url='https://api.github.com/rate_limit', method='GET')
     request.add_header('Accept', 'application/vnd.github.v3+json')
+    
     with urllib.request.urlopen(request) as res:
         response = res.read().decode('utf-8')
         logging.debug(res.headers)
-        logging.info('Rate limit: {0}, remaining: {1}'.format(res.headers['X-RateLimit-Limit'], res.headers['X-RateLimit-Remaining']))
+        rate_limit = int(res.headers['X-RateLimit-Limit'])
+        rate_remaining = int(res.headers['X-RateLimit-Remaining'])
+        rate_reset = datetime.fromtimestamp(int(res.headers['X-RateLimit-Reset']))
+    
+    logging.info('Rate limit: {0}, remaining: {1}, reset: {2}'.format(str(rate_limit), str(rate_remaining), str(rate_reset)))
+    return {'rate_limit': rate_limit, 'rate_remaining': rate_remaining, 'rate_reset': rate_reset}
+
 
 
 @func_run_logging
