@@ -28,6 +28,15 @@ from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 
 
+def log_run_function(func):
+    def log(*args, **kwargs):
+        logging.info("Запускаем функцию: {0}({1})".format(func.__name__, ', '.join(args)))
+        print("Запускаем функцию: {0}({1})".format(func.__name__, ', '.join(args)))
+        return func(*args, **kwargs)
+    return log
+
+
+@log_run_function
 def main(url, branch, startdate, enddate):
     '''
     '''
@@ -36,6 +45,7 @@ def main(url, branch, startdate, enddate):
     print(get_open_and_closed_pull_requests(repository))
 
 
+@log_run_function
 def get_top_contributors(repository):
     '''
     Самые активные участники. Таблица из 2 столбцов: login автора, количество его коммитов.
@@ -50,54 +60,75 @@ def get_top_contributors(repository):
     return contributors[:30]
 
 
+@log_run_function
 def get_open_and_closed_pull_requests(repository):
     '''Количество открытых и закрытых pull requests.'''
-    API_URL = 'https://api.github.com/repos/{0}/pulls'.format(repository)
+    API_URL = 'https://api.github.com/repos/{0}/pulls?state=all'.format(repository)
     open_pull_requests = 0
+    closed_pull_requests = 0
     for response_json in get_resource(API_URL):
         for response_element in response_json:
-            open_pull_requests +=1
-    return open_pull_requests
+            if response_element['state']=='open':
+                open_pull_requests += 1
+            else:
+                closed_pull_requests += 1
+    return open_pull_requests, closed_pull_requests
     #return open_pull_requests, close_pull_requests
 
 
-def parse_header_links(header_links):
+@log_run_function
+def parse_headers_link(headers_link):
     ''' 
-    >>> parse_header_links(
+    >>> parse_headers_link(
     ... '<https://api.github.com/repositories/1579990/pulls?page=2>; rel="next", ' +
     ... '<https://api.github.com/repositories/1579990/pulls?page=4>; rel="last"')
     {'next': {'page': 2}, 'last': {'page': 4}}
+    >>> parse_headers_link(
+    ... '<https://api.github.com/repositories/1579990/pulls?state=all&page=2>; rel="next", ' +
+    ... '<https://api.github.com/repositories/1579990/pulls?state=all&page=116>; rel="last"')
+    {'next': {'state': 'all', 'page': 2}, 'last': {'state': 'all', 'page': 116}}
     '''
-    logging.info('Running parse_header_links function')
-    logging.debug(header_links)
-    rel = dict()
-    for i in header_links.split(','):
-        foo = i.split(';')
-        page = re.sub('>$', '', re.sub('^<[\S]+\?','', foo[0].strip())).split('=')
-        rel_value = (re.sub('"', '', foo[1]).split('='))[1]
-        rel[rel_value] = {page[0]: int(page[1])}
-    logging.debug(rel)
-    return rel
+    logging.info('Running parse_headers_link function')
+    logging.debug(headers_link)
+    rels = dict()
+    for i in headers_link.split(','):
+        uri, rel = i.split(';')
+        rel_value = (re.sub('"', '', rel).split('='))[1]
+        key_values = dict()
+        for key_value in re.sub('>$', '', re.sub('^<[\S]+\?','', uri.strip())).split('&'):
+            key, value = key_value.split('=')
+            try:
+                key_values[key] = int(value)
+            except ValueError:
+                key_values[key] = value
+        rels[rel_value] = key_values
+    logging.debug(rels)
+    return rels
 
 
+@log_run_function
 def get_resource(url):
     request = urllib.request.Request(url=(url), method='GET')
     request.add_header('Accept', 'application/vnd.github.v3+json')
     with urllib.request.urlopen(request) as res:
         response = res.read().decode('utf-8')
-        rel = parse_header_links(res.headers['Link'])
+        rel = parse_headers_link(res.headers['Link'])
     if rel['next'] == None:
+        logging.debug("some")
         return json.loads(response)
     else:
+        logging.debug("some")
         yield json.loads(response)
     for i in range(rel['next']['page'],rel['last']['page']+1):
         request = urllib.request.Request(url=(url + '?page=' + str(i)), method='GET')
         request.add_header('Accept', 'application/vnd.github.v3+json')
         with urllib.request.urlopen(request) as res:
             response = res.read().decode('utf-8')
+        logging.debug("some")
         yield json.loads(response)
 
 
+@log_run_function
 def valid_url(url):
     if re.match('^(https://)?github.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+/?$', url):
         return url
@@ -106,6 +137,7 @@ def valid_url(url):
         raise ArgumentTypeError(msg)
 
 
+@log_run_function
 def valid_date(date):
     try:
         return datetime.strptime(date, '%Y-%m-%d')
@@ -115,7 +147,7 @@ def valid_date(date):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename='example.log', level=logging.DEBUG)
+    logging.basicConfig(filename='X:\OwnWork\PlayRix\example.log', level=logging.DEBUG)
     parser = ArgumentParser(description='Анализ репозитория github.')
     # URL публичного репозитория на github.com
     parser.add_argument('url', type=valid_url,
