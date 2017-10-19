@@ -21,6 +21,7 @@ Source: https://github.com/maruschin/some_python
 '''
 
 import urllib.request
+from urllib.error import HTTPError
 import json
 import re
 import logging
@@ -66,14 +67,15 @@ def get_open_and_closed_pull_requests(repository):
     API_URL = 'https://api.github.com/repos/{0}/pulls?state=all'.format(repository)
     open_pull_requests = 0
     closed_pull_requests = 0
+    logging.info("Counting open and closed pull requests...")
     for response_json in get_resource(API_URL):
         for response_element in response_json:
             if response_element['state']=='open':
                 open_pull_requests += 1
             else:
                 closed_pull_requests += 1
+        logging.info("Open: {0}, closed: {1} pull requests...",format(open_pull_requests, closed_pull_request))
     return open_pull_requests, closed_pull_requests
-    #return open_pull_requests, close_pull_requests
 
 
 @log_run_function
@@ -88,7 +90,6 @@ def parse_headers_link(headers_link):
     ... '<https://api.github.com/repositories/1579990/pulls?state=all&page=116>; rel="last"')
     {'next': {'state': 'all', 'page': 2}, 'last': {'state': 'all', 'page': 116}}
     '''
-    logging.info('Running parse_headers_link function')
     logging.debug(headers_link)
     rels = dict()
     for i in headers_link.split(','):
