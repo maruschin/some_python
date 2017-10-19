@@ -29,15 +29,14 @@ from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 
 
-def log_run_function(func):
-    def log(*args, **kwargs):
-        logging.info("Запускаем функцию: {0}({1})".format(func.__name__, ', '.join(args)))
-        print("Запускаем функцию: {0}({1})".format(func.__name__, ', '.join(args)))
+def func_run_logging(func):
+    def func_log(*args, **kwargs):
+        logging.info("Run function: {0}({1})".format(func.__name__, ', '.join(args)))
         return func(*args, **kwargs)
-    return log
+    return func_log
 
 
-@log_run_function
+@func_run_logging
 def main(url, branch, startdate, enddate):
     '''
     '''
@@ -46,7 +45,7 @@ def main(url, branch, startdate, enddate):
     print(get_open_and_closed_pull_requests(repository))
 
 
-@log_run_function
+@func_run_logging
 def get_top_contributors(repository):
     '''
     Самые активные участники. Таблица из 2 столбцов: login автора, количество его коммитов.
@@ -61,7 +60,7 @@ def get_top_contributors(repository):
     return contributors[:30]
 
 
-@log_run_function
+@func_run_logging
 def get_open_and_closed_pull_requests(repository):
     '''Количество открытых и закрытых pull requests.'''
     API_URL = 'https://api.github.com/repos/{0}/pulls?state=all'.format(repository)
@@ -78,7 +77,7 @@ def get_open_and_closed_pull_requests(repository):
     return open_pull_requests, closed_pull_requests
 
 
-@log_run_function
+@func_run_logging
 def parse_headers_link(headers_link):
     ''' 
     >>> parse_headers_link(
@@ -107,7 +106,7 @@ def parse_headers_link(headers_link):
     return rels
 
 
-@log_run_function
+@func_run_logging
 def get_resource(url):
     request = urllib.request.Request(url=(url), method='GET')
     request.add_header('Accept', 'application/vnd.github.v3+json')
@@ -129,7 +128,7 @@ def get_resource(url):
         yield json.loads(response)
 
 
-@log_run_function
+@func_run_logging
 def valid_url(url):
     if re.match('^(https://)?github.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+/?$', url):
         return url
@@ -138,7 +137,7 @@ def valid_url(url):
         raise ArgumentTypeError(msg)
 
 
-@log_run_function
+@func_run_logging
 def valid_date(date):
     try:
         return datetime.strptime(date, '%Y-%m-%d')
