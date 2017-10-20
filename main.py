@@ -21,7 +21,6 @@ Source: https://github.com/maruschin/some_python
 '''
 
 import urllib.request
-from urllib.error import HTTPError
 import json
 import re
 import logging
@@ -44,22 +43,36 @@ def main(url, branch, startdate, enddate):
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
 
     print(get_rate_limit())
-    #print(get_top_contributors(repository))
+    print(get_top_contributors(repository, branch, startdate, enddate))
     #print(get_open_and_closed_pull_requests(repository))
 
 
 @func_run_logging
-def get_top_contributors(repository):
+def get_top_contributors(repository, branch, since, until):
     '''
     Самые активные участники. Таблица из 2 столбцов: login автора, количество его коммитов.
     Таблица отсортирована по количеству коммитов по убыванию. Не более 30 строк.
     '''
-    API_URL = 'https://api.github.com/repos/{0}/stats/contributors'.format(repository)
-    contributors = []
+    API_URL = 'https://api.github.com/repos/{0}/commits'.format(repository)
+    
+    key_values = ['sha={0}'.format(branch), 'per_page=100']
+    if since != None:
+        key_values.append('='.join(['since', since.isoformat()]))
+    if until != None:
+        key_values.append('='.join(['until', until.isoformat()]))
+    API_URL = '?'.join([API_URL, '&'.join(key_values)])
+
+    contributors = dict()
     for response_json in get_resource(API_URL):
         for response_element in response_json:
-            contributors.append((response_element['author']['login'], response_element['total']))
-    contributors.sort(key=lambda el: el[1], reverse=True)
+            try:
+                contributors[response_element['author']['login']] += 1
+            except KeyError:
+                contributors[response_element['author']['login']] = 1
+            except TypeError:
+                # Коммиты у кторых нет логина - не считаем
+                pass
+    contributors = sorted(contributors.items(), key=lambda it: it[1], reverse=True)
     return contributors[:30]
 
 
@@ -139,7 +152,9 @@ def get_resource(url):
     else:
         yield json.loads(response)
         for i in range(rel['next']['page'],rel['last']['page']+1):
-            request = urllib.request.Request(url=(url + '&page=' + str(i)), method='GET')
+            REQUEST_URL = url + '&page=' + str(i)
+            logging.debug(REQUEST_URL)
+            request = urllib.request.Request(url=REQUEST_URL, method='GET')
             request.add_header('Accept', 'application/vnd.github.v3+json')
             with urllib.request.urlopen(request) as res:
                 response = res.read().decode('utf-8')
@@ -172,16 +187,16 @@ if __name__ == "__main__":
     logging.basicConfig(filename=FILENAME, format=FORMAT, level=logging.DEBUG)
     parser = ArgumentParser(description='Анализ репозитория github.')
     # URL публичного репозитория на github.com
-    parser.add_argument('url', type=valid_url,
+    parser.add_argument('url', type = valid_url,
         help='The URL of the public repository on github.com')
     # Дата начала анализа. Если пустая, то неограничено.
-    parser.add_argument('-s', '--startdate', type=valid_date,
+    parser.add_argument('-s', '--startdate', type=valid_date, default=None,
         help='Дата начала анализа в формате YYYY-MM-DD')
     # Дата окончания анализа. Если пустая, то неограничено.
-    parser.add_argument('-e', '--enddate', type=valid_date,
+    parser.add_argument('-e', '--enddate', type=valid_date, default=None,
         help='Дата окончания анализа в формате YYYY-MM-DD')
     # Ветка репозитория. По умолчанию - master.
-    parser.add_argument('-b', '--branch', type=str, default = 'master',
+    parser.add_argument('-b', '--branch', type=str, default='master',
         help='Ветка репозитория. По умолчанию - master')
     #import doctest
     #doctest.testmod()
