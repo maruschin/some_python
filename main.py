@@ -24,11 +24,13 @@ import urllib.request
 import json
 import re
 import logging
+import functools
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 
 
 def func_run_logging(func):
+    @functools.wraps(func)
     def func_log(*args, **kwargs):
         args_string = ', '.join([str(arg) for arg in args] + ['='.join((key, str(kwargs[key]))) for key in kwargs])
         logging.info("Run function: {0}({1})".format(func.__name__, args_string))
