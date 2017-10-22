@@ -49,7 +49,8 @@ def main(url, branch, startdate, enddate):
     #print(get_top_contributors(repository, branch, startdate, enddate))
     #print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
     #print(get_old_pull_requests(repository, branch, startdate, enddate))
-    print(get_open_and_closed_issues(repository, branch, startdate, enddate))
+    #print(get_open_and_closed_issues(repository, branch, startdate, enddate))
+    print(get_old_issues(repository, branch, startdate, enddate))
 
 
 @func_run_logging
@@ -154,6 +155,30 @@ def get_open_and_closed_issues(repository, branch, since, until):
         logging.info("Open issues: {0}; closed issues: {1}...".format(str(open_issues), str(closed_issues)))
     return open_issues, closed_issues
 
+
+@func_run_logging
+def get_old_issues(repository, branch, since, until):
+    '''
+    Количество "старых" issues. Issue считается старым, 
+    если он не закрывается в течении 14 дней.
+    '''
+    API_URL = 'https://api.github.com/repos/{0}/issues'.format(repository)
+    
+    key_values = ['base={0}'.format(branch), 'per_page=100', 'state=open']
+    if since != None:
+        key_values.append('='.join(['since', since.isoformat()]))
+    API_URL = '?'.join([API_URL, '&'.join(key_values)])
+
+    old_issues = 0
+    old_date = datetime.now() - timedelta(days = 14)
+    if until == None: until = datetime.now()
+    for response_json in get_resource(API_URL):
+        for response_element in response_json:
+            created = datetime.strptime(response_element['created_at'], '%Y-%m-%dT%H:%M:%SZ')
+            if (created <= until and created <= old_date):
+                old_issues += 1
+        logging.info("Old issues: {0}...".format(str(old_issues)))
+    return  old_issues
 
 
 @func_run_logging
