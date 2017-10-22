@@ -27,7 +27,7 @@ import logging
 import functools
 import base64
 from argparse import ArgumentParser, ArgumentTypeError
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def func_run_logging(func):
@@ -47,8 +47,8 @@ def main(url, branch, startdate, enddate):
 
     #print(get_rate_limit())
     #print(get_top_contributors(repository, branch, startdate, enddate))
-    print(get_open_and_closed_pull_requests(repository, branch, startdate,
-    enddate))
+    #print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
+    print(get_old_pull_requests(repository, branch, startdate, enddate))
 
 
 @func_run_logging
@@ -86,6 +86,7 @@ def get_open_and_closed_pull_requests(repository, branch, since, until):
     API_URL = 'https://api.github.com/repos/{0}/pulls?state=all&per_page=100'.format(repository)
     
     key_values = ['base={0}'.format(branch), 'per_page=100']
+    API_URL = '?'.join([API_URL, '&'.join(key_values)])
 
     open_pull_requests, closed_pull_requests = 0, 0
     logging.info("Counting open and closed pull requests...")
@@ -101,6 +102,32 @@ def get_open_and_closed_pull_requests(repository, branch, since, until):
                   closed_pull_requests += 1
         logging.info("Open: {0}, closed: {1} pull requests...".format(str(open_pull_requests), str(closed_pull_requests)))
     return open_pull_requests, closed_pull_requests
+
+
+@func_run_logging
+def get_old_pull_requests(repository, branch, since, until):
+    '''
+    Количество "старых" pull requests. Pull requests считается старым, 
+    если он не закрывается в течении 30 дней.
+    '''
+    API_URL = 'https://api.github.com/repos/{0}/pulls?state=open&per_page=100'.format(repository)
+    
+    key_values = ['base={0}'.format(branch), 'per_page=100']
+    API_URL = '?'.join([API_URL, '&'.join(key_values)])
+
+    old_pull_requests = 0
+    old_date = datetime.now() - timedelta(days = 30)
+    if until == None: until = datetime.now()
+    if since == None: since = datetime(1900, 1, 1)
+    for response_json in get_resource(API_URL):
+        for response_element in response_json:
+            created = datetime.strptime(response_element['created_at'], '%Y-%m-%dT%H:%M:%SZ')
+            if (since <= created and created <= until and created <= old_date):
+                old_pull_requests += 1
+        logging.info("Old: {0} pull requests...".format(str(old_pull_requests)))
+    return old_pull_requests
+
+    
 
 
 @func_run_logging
