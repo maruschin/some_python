@@ -46,10 +46,10 @@ def main(url, branch, startdate, enddate):
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
 
     #print(get_rate_limit())
-    #print(get_top_contributors(repository, branch, startdate, enddate))
-    #print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
-    #print(get_old_pull_requests(repository, branch, startdate, enddate))
-    #print(get_open_and_closed_issues(repository, branch, startdate, enddate))
+    print(get_top_contributors(repository, branch, startdate, enddate))
+    print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
+    print(get_old_pull_requests(repository, branch, startdate, enddate))
+    print(get_open_and_closed_issues(repository, branch, startdate, enddate))
     print(get_old_issues(repository, branch, startdate, enddate))
 
 
