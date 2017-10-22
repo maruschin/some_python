@@ -45,7 +45,7 @@ def main(url, branch, startdate, enddate):
     '''
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
 
-    #print(get_rate_limit())
+    print(get_rate_limit())
     #print(get_top_contributors(repository, branch, startdate, enddate))
     #print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
     #print(get_old_pull_requests(repository, branch, startdate, enddate))
@@ -211,19 +211,31 @@ def parse_headers_link(headers_link):
 
 
 @func_run_logging
+def get_basic_auth(cache=[]):
+    '''
+    Get username and login from user and memorize it in cache attribute.
+    It's black magic, but it works.
+    '''
+    if not cache:
+        print('Enter login to access Github API:', end=' ')
+        username = str(input())
+        print('Enter password for {0}:'.format(username), end=' ')
+        password = str(input())
+    
+        string = '%s:%s' % (username, password)
+        basic_token = base64.b64encode(string.encode()).decode('utf-8')
+        cache.append(basic_token)
+    else:
+        basic_token = cache[0]
+    return ('Authorization', 'Basic %s' % basic_token)
+
+
+@func_run_logging
 def get_request(url, method):
     ''' Get request entity with basic auth '''
     request = urllib.request.Request(url=url, method=method)
     request.add_header('Accept', 'application/vnd.github.v3+json')
-    
-    print('Enter login to access Github API:', end=' ')
-    username = str(input())
-    print('Enter password for {0}:'.format(username), end=' ')
-    password = str(input())
-    
-    string = '%s:%s' % (username, password)
-    base64string = base64.b64encode(string.encode()).decode('utf-8')
-    request.add_header('Authorization', 'Basic %s' % base64string)
+    request.add_header(*get_basic_auth())
 
     return request
 
