@@ -48,7 +48,8 @@ def main(url, branch, startdate, enddate):
     #print(get_rate_limit())
     #print(get_top_contributors(repository, branch, startdate, enddate))
     #print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
-    print(get_old_pull_requests(repository, branch, startdate, enddate))
+    #print(get_old_pull_requests(repository, branch, startdate, enddate))
+    print(get_open_and_closed_issues(repository, branch, startdate, enddate))
 
 
 @func_run_logging
@@ -83,9 +84,9 @@ def get_top_contributors(repository, branch, since, until):
 @func_run_logging
 def get_open_and_closed_pull_requests(repository, branch, since, until):
     '''Количество открытых и закрытых pull requests.'''
-    API_URL = 'https://api.github.com/repos/{0}/pulls?state=all&per_page=100'.format(repository)
+    API_URL = 'https://api.github.com/repos/{0}/pulls'.format(repository)
     
-    key_values = ['base={0}'.format(branch), 'per_page=100']
+    key_values = ['base={0}'.format(branch), 'per_page=100', 'state=all']
     API_URL = '?'.join([API_URL, '&'.join(key_values)])
 
     open_pull_requests, closed_pull_requests = 0, 0
@@ -110,9 +111,9 @@ def get_old_pull_requests(repository, branch, since, until):
     Количество "старых" pull requests. Pull requests считается старым, 
     если он не закрывается в течении 30 дней.
     '''
-    API_URL = 'https://api.github.com/repos/{0}/pulls?state=open&per_page=100'.format(repository)
+    API_URL = 'https://api.github.com/repos/{0}/pulls'.format(repository)
     
-    key_values = ['base={0}'.format(branch), 'per_page=100']
+    key_values = ['base={0}'.format(branch), 'per_page=100', 'state=open']
     API_URL = '?'.join([API_URL, '&'.join(key_values)])
 
     old_pull_requests = 0
@@ -127,7 +128,32 @@ def get_old_pull_requests(repository, branch, since, until):
         logging.info("Old: {0} pull requests...".format(str(old_pull_requests)))
     return old_pull_requests
 
+
+@func_run_logging
+def get_open_and_closed_issues(repository, branch, since, until):
+    '''
+    Количество открытых и закрытых issues.
+    '''
+    API_URL = 'https://api.github.com/repos/{0}/issues'.format(repository)
     
+    key_values = ['base={0}'.format(branch), 'per_page=100', 'state=all']
+    if since != None:
+        key_values.append('='.join(['since', since.isoformat()]))
+    API_URL = '?'.join([API_URL, '&'.join(key_values)])
+
+    open_issues, closed_issues = 0, 0
+    if until == None: until = datetime.now()
+    for response_json in get_resource(API_URL):
+        for response_element in response_json:
+            created = datetime.strptime(response_element['created_at'], '%Y-%m-%dT%H:%M:%SZ')
+            if (created <= until):
+                if response_element['state']=='open':
+                    open_issues += 1
+                if response_element['state']=='closed':
+                    closed_issues +=1
+        logging.info("Open issues: {0}; closed issues: {1}...".format(str(open_issues), str(closed_issues)))
+    return open_issues, closed_issues
+
 
 
 @func_run_logging
