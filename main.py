@@ -46,10 +46,10 @@ def main(url, branch, startdate, enddate):
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
 
     #print(get_rate_limit())
-    print(get_top_contributors(repository, branch, startdate, enddate))
-    print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
-    print(get_old_pull_requests(repository, branch, startdate, enddate))
-    print(get_open_and_closed_issues(repository, branch, startdate, enddate))
+    #print(get_top_contributors(repository, branch, startdate, enddate))
+    #print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
+    #print(get_old_pull_requests(repository, branch, startdate, enddate))
+    #print(get_open_and_closed_issues(repository, branch, startdate, enddate))
     print(get_old_issues(repository, branch, startdate, enddate))
 
 
@@ -211,15 +211,28 @@ def parse_headers_link(headers_link):
 
 
 @func_run_logging
-def get_rate_limit():
-    request = urllib.request.Request(url='https://api.github.com/rate_limit', method='GET')
+def get_request(url, method):
+    ''' Get request entity with basic auth '''
+    request = urllib.request.Request(url=url, method=method)
     request.add_header('Accept', 'application/vnd.github.v3+json')
     
-    print('Password: ')
+    print('Enter login to access Github API:', end=' ')
+    username = str(input())
+    print('Enter password for {0}:'.format(username), end=' ')
     password = str(input())
-    string = '%s:%s' % ('maruschin', password)
+    
+    string = '%s:%s' % (username, password)
     base64string = base64.b64encode(string.encode()).decode('utf-8')
     request.add_header('Authorization', 'Basic %s' % base64string)
+
+    return request
+
+
+@func_run_logging
+def get_rate_limit():
+    ''' Get rate limit '''
+    url = 'https://api.github.com/rate_limit'
+    request = get_request(url, 'GET')
     
     with urllib.request.urlopen(request) as res:
         response = res.read().decode('utf-8')
@@ -232,17 +245,10 @@ def get_rate_limit():
     return {'rate_limit': rate_limit, 'rate_remaining': rate_remaining, 'rate_reset': rate_reset}
 
 
-
 @func_run_logging
 def get_resource(url):
-    request = urllib.request.Request(url=url, method='GET')
-    request.add_header('Accept', 'application/vnd.github.v3+json')
-    
-    print('Password: ')
-    password = str(input())
-    string = '%s:%s' % ('maruschin', password)
-    base64string = base64.b64encode(string.encode()).decode('utf-8')
-    request.add_header('Authorization', 'Basic %s' % base64string)
+    ''' Get resources '''
+    request = get_request(url, 'GET')
 
     with urllib.request.urlopen(request) as res:
         response = res.read().decode('utf-8')
@@ -255,9 +261,7 @@ def get_resource(url):
         for i in range(rel['next']['page'],rel['last']['page']+1):
             REQUEST_URL = url + '&page=' + str(i)
             logging.debug(REQUEST_URL)
-            request = urllib.request.Request(url=REQUEST_URL, method='GET')
-            request.add_header('Accept', 'application/vnd.github.v3+json')
-            request.add_header('Authorization', 'Basic %s' % base64string)
+            request.full_url = REQUEST_URL
             with urllib.request.urlopen(request) as res:
                 response = res.read().decode('utf-8')
             yield json.loads(response)
