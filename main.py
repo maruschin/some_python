@@ -25,6 +25,7 @@ import json
 import re
 import logging
 import functools
+import base64
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 
@@ -44,9 +45,10 @@ def main(url, branch, startdate, enddate):
     '''
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
 
-    print(get_rate_limit())
-    print(get_top_contributors(repository, branch, startdate, enddate))
-    #print(get_open_and_closed_pull_requests(repository))
+    #print(get_rate_limit())
+    #print(get_top_contributors(repository, branch, startdate, enddate))
+    print(get_open_and_closed_pull_requests(repository, branch, startdate,
+    enddate))
 
 
 @func_run_logging
@@ -79,18 +81,24 @@ def get_top_contributors(repository, branch, since, until):
 
 
 @func_run_logging
-def get_open_and_closed_pull_requests(repository):
+def get_open_and_closed_pull_requests(repository, branch, since, until):
     '''Количество открытых и закрытых pull requests.'''
     API_URL = 'https://api.github.com/repos/{0}/pulls?state=all&per_page=100'.format(repository)
-    open_pull_requests = 0
-    closed_pull_requests = 0
+    
+    key_values = ['base={0}'.format(branch), 'per_page=100']
+
+    open_pull_requests, closed_pull_requests = 0, 0
     logging.info("Counting open and closed pull requests...")
+    if until == None: until = datetime.now()
+    if since == None: since = datetime.datetime(1900, 1, 1)
     for response_json in get_resource(API_URL):
         for response_element in response_json:
-            if response_element['state']=='open':
-                open_pull_requests += 1
-            else:
-                closed_pull_requests += 1
+            created = datetime.strptime(response_element['created_at'], '%Y-%m-%dT%H:%M:%SZ')
+            if (since <= created and created <= until):
+                if response_element['state']=='open':
+                   open_pull_requests += 1
+                else:
+                  closed_pull_requests += 1
         logging.info("Open: {0}, closed: {1} pull requests...".format(str(open_pull_requests), str(closed_pull_requests)))
     return open_pull_requests, closed_pull_requests
 
@@ -129,6 +137,12 @@ def get_rate_limit():
     request = urllib.request.Request(url='https://api.github.com/rate_limit', method='GET')
     request.add_header('Accept', 'application/vnd.github.v3+json')
     
+    print('Password: ')
+    password = str(input())
+    string = '%s:%s' % ('maruschin', password)
+    base64string = base64.b64encode(string.encode()).decode('utf-8')
+    request.add_header('Authorization', 'Basic %s' % base64string)
+    
     with urllib.request.urlopen(request) as res:
         response = res.read().decode('utf-8')
         logging.debug(res.headers)
@@ -143,8 +157,15 @@ def get_rate_limit():
 
 @func_run_logging
 def get_resource(url):
-    request = urllib.request.Request(url=(url), method='GET')
+    request = urllib.request.Request(url=url, method='GET')
     request.add_header('Accept', 'application/vnd.github.v3+json')
+    
+    print('Password: ')
+    password = str(input())
+    string = '%s:%s' % ('maruschin', password)
+    base64string = base64.b64encode(string.encode()).decode('utf-8')
+    request.add_header('Authorization', 'Basic %s' % base64string)
+
     with urllib.request.urlopen(request) as res:
         response = res.read().decode('utf-8')
         logging.debug(res.headers)
@@ -158,6 +179,7 @@ def get_resource(url):
             logging.debug(REQUEST_URL)
             request = urllib.request.Request(url=REQUEST_URL, method='GET')
             request.add_header('Accept', 'application/vnd.github.v3+json')
+            request.add_header('Authorization', 'Basic %s' % base64string)
             with urllib.request.urlopen(request) as res:
                 response = res.read().decode('utf-8')
             yield json.loads(response)
