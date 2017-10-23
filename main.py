@@ -45,12 +45,26 @@ def main(url, branch, startdate, enddate):
     '''
     repository = '/'.join([n for n in url.split('/') if n not in ['', 'https:', 'github.com']])
 
-    print(get_rate_limit())
-    #print(get_top_contributors(repository, branch, startdate, enddate))
-    #print(get_open_and_closed_pull_requests(repository, branch, startdate, enddate))
-    #print(get_old_pull_requests(repository, branch, startdate, enddate))
-    #print(get_open_and_closed_issues(repository, branch, startdate, enddate))
-    print(get_old_issues(repository, branch, startdate, enddate))
+    rate_limit = get_rate_limit()
+    top_contributors = get_top_contributors(repository, branch, startdate, enddate)
+    open_and_closed_pull_requests = get_open_and_closed_pull_requests(repository, branch, startdate, enddate)
+    old_pull_requests = get_old_pull_requests(repository, branch, startdate, enddate)
+    open_and_closed_issues = get_open_and_closed_issues(repository, branch, startdate, enddate)
+    old_issues = get_old_issues(repository, branch, startdate, enddate)
+    
+    print('\n\nGithub analytics')
+    print('Url: {}'.format(url))
+    print('Branch: {}'.format(branch))
+    if not startdate is None: print('Since: {}'.format(startdate))
+    if not enddate is None: print('Until: {}'.format(enddate))
+    print('\nRate limit: {rate_limit}, rate remaining: {rate_remaining}, rate reset: {rate_reset}'.format(**rate_limit))
+    print('\nTop 30 contributors:')
+    for contributor in top_contributors:
+        print('Login: {:20} rating: {:<20}'.format(*contributor))
+    print('\nOpen pull requests: {}, closed pull requests: {}'.format(*open_and_closed_pull_requests))
+    print('Old pull requests: {}'.format(old_pull_requests))
+    print('\nOpen issues: {}, closed issues: {}'.format(*open_and_closed_issues))
+    print('Old issues: {}\n'.format(old_issues))
 
 
 @func_run_logging
@@ -102,6 +116,15 @@ def get_open_and_closed_pull_requests(repository, branch, since, until):
                    open_pull_requests += 1
                 else:
                   closed_pull_requests += 1
+            else:
+                # Pull request отсортированы в порядке убывания даты создания
+                # Выходим из цикла, если не прошли проверку
+                break
+        else:
+            # Если мы вышли из цикла без прерывания, то продолжаем запрашивать данные
+            continue
+        # Если вышли из внутреннего цикла с прерыванием, то прекращаем запрашивать данные
+        break
         logging.info("Open: {0}, closed: {1} pull requests...".format(str(open_pull_requests), str(closed_pull_requests)))
     return open_pull_requests, closed_pull_requests
 
@@ -217,7 +240,7 @@ def get_basic_auth(cache=[]):
     It's black magic, but it works.
     '''
     if not cache:
-        print('Enter login to access Github API:', end=' ')
+        print('\nEnter login to access Github API:', end=' ')
         username = str(input())
         print('Enter password for {0}:'.format(username), end=' ')
         password = str(input())
