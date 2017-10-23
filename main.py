@@ -19,13 +19,14 @@ Source: https://github.com/maruschin/some_python
   * Количество "старых" issues. Issue считается старым, 
     если он не закрывается в течении 14 дней.
 '''
-
-import urllib.request
-import json
+import os
 import re
+import json
+import base64
 import logging
 import functools
-import base64
+import urllib.request
+
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime, timedelta
 
@@ -324,7 +325,7 @@ def valid_date(date):
 
 if __name__ == "__main__":
     FORMAT = '%(asctime)-15s [%(levelname)s] %(message)s'
-    FILENAME = 'X:\OwnWork\PlayRix\example.log'
+    FILENAME = os.path.join(os.getcwd(), "example.log")
     logging.basicConfig(filename=FILENAME, format=FORMAT, level=logging.DEBUG)
     parser = ArgumentParser(description='Анализ репозитория github.')
     # URL публичного репозитория на github.com
@@ -339,6 +340,4 @@ if __name__ == "__main__":
     # Ветка репозитория. По умолчанию - master.
     parser.add_argument('-b', '--branch', type=str, default='master',
         help='Ветка репозитория. По умолчанию - master')
-    #import doctest
-    #doctest.testmod()
     main(**(vars(parser.parse_args())))
